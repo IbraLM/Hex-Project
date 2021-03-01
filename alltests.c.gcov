@@ -1,0 +1,112 @@
+        -:    0:Source:src/alltests.c
+        -:    0:Graph:alltests.gcno
+        -:    0:Data:alltests.gcda
+        -:    0:Runs:1
+        -:    0:Programs:1
+        -:    1:#include "tests_player.h"
+        -:    2:#include "tests_my-graph.h"
+        -:    3:#include "tests_heuristic_parents.h"
+        -:    4:
+        -:    5:/*
+        -:    6:struct player {
+        -:    7:    char const* name;
+        -:    8:    enum color_t couleur;
+        -:    9:    struct graph_t* graph;
+        -:   10:    size_t M;
+        -:   11:  size_t N;                         // Nombre de cases libres
+        -:   12:  };
+        -:   13:
+        -:   14:static struct player player1;
+        -:   15:
+        -:   16:on laissse la fonction indicelibre le temps de trouver une solution
+        -:   17:
+        -:   18:int indicelibre(struct player player1, int n){
+        -:   19:  int i = rand()%player1.N+1;
+        -:   20:  int compteur  = 0;
+        -:   21:  for(int j = 0; j < n; j++)
+        -:   22:    {
+        -:   23:      if(gsl_spmatrix_get(player1.graph->o, player1.couleur, j) == 0 &&  gsl_spmatrix_get(player1.graph->o, (player1.couleur+1)%2, j)==0){
+        -:   24:        compteur++;
+        -:   25:      }
+        -:   26:      if(compteur == i)
+        -:   27:        return j;
+        -:   28:    }
+        -:   29:  return -1;
+        -:   30:}
+        -:   31:
+        -:   32:void test_get_player_name()
+        -:   33:{
+        -:   34:  get_player_name();
+        -:   35:  assert(strcmp(player1.name,"Hero"));
+        -:   36:}
+        -:   37:
+        -:   38:void test_propose_opening()
+        -:   39:{
+        -:   40:  size_t M = player1.M;
+        -:   41:  struct move_t m = propose_opening();
+        -:   42:  assert(m.m %(M+1) != 0 || m.m%(M+1) != M);
+        -:   43:}
+        -:   44:
+        -:   45:void test_accept_opening()
+        -:   46:{
+        -:   47:  struct move_t opening;
+        -:   48:  opening.m = player1.M - 1;
+        -:   49:  assert(accept_opening(opening));
+        -:   50:}
+        -:   51:
+        -:   52:void test_initialize_graph()
+        -:   53:{
+        -:   54:  struct graph_t* graph = initialize_carre(16);
+        -:   55:  initialize_graph(graph);
+        -:   56:  assert(player1.graph==graph);
+        -:   57:  assert(player1.M==3);
+        -:   58:  assert(player1.N==9);
+        -:   59:}
+        -:   60:
+        -:   61:void test_initialize_color()
+        -:   62:{
+        -:   63:  struct move_t move;
+        -:   64:  move.m = 2;
+        -:   65:  move.c = 1;
+        -:   66:  initialize_color(move.c);
+        -:   67:  assert(player1.couleur == 1);
+        -:   68:}
+        -:   69:
+        -:   70:void test_play()
+        -:   71:{
+        -:   72:  struct move_t previous_move;
+        -:   73:  struct move_t m;
+        -:   74:  size_t M = player1.M;
+        -:   75:  m.c = player1.couleur;
+        -:   76:  m.m = 0;
+        -:   77:  player1.N = 0;
+        -:   78:  assert(play(previous_move).m == m.m && play(previous_move).c == m.c);
+        -:   79:  player1.N = player1.graph->num_vertices - 1;
+        -:   80:  m.m = indicelibre(player1, (M+1)*(M+1));
+        -:   81:  assert(play(previous_move).m == m.m && play(previous_move).c == m.c);
+        -:   82:}
+        -:   83:
+        -:   84:void test_finalize()
+        -:   85:{
+        -:   86:  assert(player1.graph == NULL);
+        -:   87:}
+        -:   88:*/
+        1:   89:int main()
+        -:   90:{
+        1:   91:  test_get_player_name();
+        1:   92:  test_propose_opening();
+        1:   93:  test_initialize_graph();
+        1:   94:  test_initialize_color();
+        1:   95:  test_play();
+        1:   96:  test_finalize();
+        1:   97:  test_nb__empty();
+        1:   98:  test_nb__realloc();
+        1:   99:  test_nb__add();
+        1:  100:  test_get_neighbours();
+        1:  101:  test_initialize_carre();
+        1:  102:  test_graph_initialize();
+        1:  103:  test_graph_add_move();
+        1:  104:  test_DFS();
+        1:  105:  test_initialize_o();
+        1:  106:  return 0;
+        -:  107:}

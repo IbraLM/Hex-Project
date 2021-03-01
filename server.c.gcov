@@ -1,0 +1,129 @@
+        -:    0:Source:src/server.c
+        -:    0:Programs:0
+        -:    1:#include <stdio.h>
+        -:    2:#include <getopt.h>
+        -:    3:#include "dlfcn.h"
+        -:    4:#include "move.h"
+        -:    5:#include "my-graph.h"
+        -:    6:#include "player-load.h"
+        -:    7:#include <time.h>
+        -:    8:#include <assert.h>
+        -:    9:
+        -:   10:
+        -:   11:size_t M=8;
+        -:   12:char T= 'c';
+        -:   13:int next=0;
+        -:   14:
+    #####:   15:int is_winning(struct graph_t* G,enum color_t id){
+    #####:   16:  int win=DFS(G,id);
+    #####:   17:  return win;
+        -:   18:}
+        -:   19:
+    #####:   20:void parse_opts(int argc, char* argv[]) {
+        -:   21:  int opt;
+    #####:   22:  while ((opt = getopt(argc, argv, "m:t:")) != -1) {
+    #####:   23:    switch (opt) {
+    #####:   24:    case 'm' :
+    #####:   25:      M = atoi(optarg);
+    #####:   26:      break;
+    #####:   27:    case 't' :
+    #####:   28:      T = *optarg;
+    #####:   29:      break;
+    #####:   30:    default: /* '?' */
+    #####:   31:      fprintf(stderr, "Usage: %s [-m M] [-t T]\n",argv[0]);
+    #####:   32:      exit(EXIT_FAILURE);
+        -:   33:    }
+        -:   34:  }
+    #####:   35:  if (optind >= argc) {
+    #####:   36:        fprintf(stderr, "Expected argument after options\n");
+    #####:   37:        exit(EXIT_FAILURE);
+        -:   38:    }
+    #####:   39:}
+        -:   40:struct graph_t* server_plateau=NULL;
+        -:   41:struct graph_t* player1_plateau=NULL;
+        -:   42:struct graph_t* player2_plateau=NULL;
+        -:   43:
+        -:   44:
+    #####:   45:int main(int argc,char*argv[]){
+    #####:   46:    parse_opts(argc,argv);
+    #####:   47:    srand(time(NULL));
+        -:   48:    struct player players[2];
+        -:   49:    struct player p;
+    #####:   50:    for(int i=0; i<2;i++){
+    #####:   51:      printf("%s\n",argv[argc-2+i]);
+    #####:   52:      players[i]=player_open(argv[argc-2+i]);
+        -:   53:    }
+    #####:   54:    assert(dlerror()== NULL);
+    #####:   55:    server_plateau=graph_initialize((M+1)*(M+1),T);
+    #####:   56:    player1_plateau=graph_initialize((M+1)*(M+1),T);
+    #####:   57:    player2_plateau=graph_initialize((M+1)*(M+1),T);
+    #####:   58:    printf("|-|-|-|___THE GAME BEGINS____|-|-|-|\n");
+    #####:   59:    graph_display(server_plateau,T);
+    #####:   60:    printf("====================================\n");
+    #####:   61:    players[0].initialize_graph(player1_plateau);
+    #####:   62:    players[1].initialize_graph(player2_plateau);
+    #####:   63:    struct move_t move=players[0].propose_opening();
+    #####:   64:    move.c=BLACK;
+    #####:   65:    if(players[1].accept_opening(move)){
+    #####:   66:      graph_add_move(server_plateau,move);
+    #####:   67:      graph_add_move(player1_plateau,move);
+    #####:   68:      printf("%s begins\n", players[0].get_player_name());   
+    #####:   69:      printf("he puts the %d piece on the %ld vertex\n",move.c,move.m);
+    #####:   70:      players[0].initialize_color(BLACK);
+    #####:   71:      players[1].initialize_color(WHITE);
+    #####:   72:      next=1;
+        -:   73:    }
+        -:   74:    else{
+    #####:   75:      printf("%s begins\n", players[1].get_player_name());
+    #####:   76:      move=players[1].propose_opening();
+    #####:   77:      move.c=BLACK;
+    #####:   78:      graph_add_move(server_plateau,move);
+    #####:   79:      graph_add_move(player2_plateau,move);
+    #####:   80:      printf("he puts the %d piece on the %ld vertex\n",move.c,move.m);
+    #####:   81:      players[0].initialize_color(WHITE);
+    #####:   82:      players[1].initialize_color(BLACK);
+    #####:   83:      next=2;
+        -:   84:    }
+        -:   85:    
+    #####:   86:    int k=0;
+        -:   87:    while(1){
+    #####:   88:      p=players[next%2];//compute_next_player
+    #####:   89:      printf("%s gonna play\n",p.get_player_name());
+    #####:   90:      move=p.play(move);
+    #####:   91:      if(!move.m){
+        -:   92:        //there's no empty places
+    #####:   93:        printf("%s can not play, there's no empty place\n",p.get_player_name()); 
+    #####:   94:        k=1;
+    #####:   95:        break;
+        -:   96:      }
+    #####:   97:      printf("he puts the %d piece on the %ld vertex\n",move.c,move.m);
+    #####:   98:      graph_add_move(server_plateau,move);
+    #####:   99:      next++;
+    #####:  100:      if(is_winning(server_plateau,move.c)){
+    #####:  101:        printf("the player %s wins\n",p.get_player_name());
+    #####:  102:        break;      
+        -:  103:      }
+        -:  104:
+        -:  105:    }
+    #####:  106:    graph_display(server_plateau,T);
+    #####:  107:    graph_free(server_plateau);
+    #####:  108:    for(int i=0; i<2;i++){
+    #####:  109:      players[i].finalize();
+        -:  110:    }
+    #####:  111:    for(int i=0; i<2;i++){
+        -:  112:
+        -:  113:      //int close = player_close(players[i]);
+    #####:  114:      player_close(players[i]);
+        -:  115:      //if(close != 0){
+        -:  116:        //printf("Error : The player isn't unloaded!");  
+        -:  117:	//return 1;
+        -:  118:    //  }
+        -:  119:    
+        -:  120:    }
+    #####:  121:    if(k)
+    #####:  122:      printf("It's a DRAWW!\n");
+        -:  123:    else
+    #####:  124:      printf("CONGRATS!!\n");
+    #####:  125:    return 0;
+        -:  126:}
+        -:  127:

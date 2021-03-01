@@ -1,0 +1,22 @@
+#include "heuristic.h"
+
+void test_path_empty();
+void test_path_realloc();
+void test_empty_index();
+void test_path_add();
+void test_get_player_name();
+void test_propose_opening();
+void test_minDistance();
+void test_get_shortest_path();
+void test_update1_graph();
+void test_path_score();
+void test_nombre_de_libre();
+void tests_heuristic();
+void test_maxi();
+void test_mini();
+void test_is_empty();
+void test_intersect();
+void test_min_max();
+void test_best_move();
+void test_play();
+void test_finalize();

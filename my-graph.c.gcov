@@ -1,0 +1,386 @@
+        -:    0:Source:src/my-graph.c
+        -:    0:Programs:0
+        -:    1:#include <stdio.h>
+        -:    2:#include "my-graph.h"
+        -:    3:
+        -:    4://////////////////////////////test///////////////////////
+        -:    5:
+        -:    6:#include <stdio.h>
+        -:    7:#include <math.h>
+        -:    8:#include <stdlib.h>
+        -:    9:
+        -:   10:#ifndef SET__SIZE
+        -:   11:#define SET__SIZE 100000
+        -:   12:#endif
+        -:   13:
+        -:   14:struct element {
+        -:   15:  double x;
+        -:   16:  double y;
+        -:   17:};
+        -:   18:
+        -:   19:struct array_elt {
+        -:   20:  size_t size;
+        -:   21:  struct element elements[SET__SIZE];
+        -:   22:};
+    #####:   23:int in_elements(struct array_elt elts, struct element e)
+        -:   24:{
+    #####:   25:  size_t size=elts.size;
+    #####:   26:  for (size_t i=0; i<size; i++)
+        -:   27:    {
+    #####:   28:      if((e.x==elts.elements[i].x) && (e.y==elts.elements[i].y))
+    #####:   29:	return i;
+        -:   30:    }
+    #####:   31:  return -1;
+        -:   32:}
+        -:   33:
+        -:   34:
+    #####:   35:struct array_elt element_c_h(size_t m) {
+    #####:   36:  size_t size = (m+1)*(m+1);
+        -:   37:  
+        -:   38:  struct array_elt elts;
+    #####:   39:  elts.size=size;
+    #####:   40:  int k=0;
+    #####:   41:  for (size_t i=0; i<m+1; i++)
+        -:   42:    {
+    #####:   43:      for (size_t j=0; j<m+1; j++)
+        -:   44:	{
+        -:   45:	  struct element e;
+    #####:   46:	  e.x=i;
+    #####:   47:	  e.y=j;
+    #####:   48:	  elts.elements[k]=e;
+    #####:   49:	  k++;
+        -:   50:	    
+        -:   51:	}
+        -:   52:    }
+    #####:   53:  return elts;
+        -:   54:}
+        -:   55:
+        -:   56://////////////////
+        -:   57:
+    #####:   58:gsl_spmatrix* initialize_o(gsl_spmatrix* o,size_t n){
+    #####:   59:    size_t i=0;
+    #####:   60:    size_t m=(int)sqrt(n)-1;
+    #####:   61:    for(i=0;i<m;i++){
+    #####:   62:        gsl_spmatrix_set(o,0,i,1);
+    #####:   63:        gsl_spmatrix_set(o,0,n-i-1,1);
+        -:   64:    }
+    #####:   65:    for(i=m;i+1<n;i=i+m+1){
+    #####:   66:        gsl_spmatrix_set(o,1,i,1);
+    #####:   67:        gsl_spmatrix_set(o,1,i+1,1);
+        -:   68:    }
+    #####:   69:    return o;
+        -:   70:}
+        -:   71://////////////
+        -:   72:
+    #####:   73:struct graph_t* initialize_carre(size_t n){
+    #####:   74:  struct graph_t* G=malloc(sizeof(struct graph_t));
+        -:   75:  //size_t n=(m+1)*(m+1);
+    #####:   76:  size_t m=(size_t)sqrt(n)-1;
+    #####:   77:  G->num_vertices=n;
+    #####:   78:  G->t=gsl_spmatrix_alloc(n,n);
+    #####:   79:  G->o=gsl_spmatrix_alloc(2,n);
+    #####:   80:  G->o=initialize_o(G->o,n);
+    #####:   81:  struct array_elt elts=element_c_h(m);
+    #####:   82:  for (size_t i=0; i<(m+1); i++)
+        -:   83:    {
+    #####:   84:      for(size_t j=0; j<(m+1); j++)
+        -:   85:	{
+    #####:   86:	  if((i!=j) && (elts.elements[i].x==elts.elements[j].x || elts.elements[i].y==elts.elements[j].y))
+        -:   87:	    {
+    #####:   88:	      gsl_spmatrix_set(G->t, i, j, 1);
+        -:   89:	    }
+        -:   90:	}
+        -:   91:    }
+    #####:   92:  return G;
+        -:   93:
+        -:   94:    
+        -:   95:}
+        -:   96:
+        -:   97:
+        -:   98:
+        -:   99:////////////////////////////////////////////////////////////
+        -:  100:
+        -:  101:
+        -:  102:
+        -:  103:////PRIVATE FUNCTIONS ans structures
+        -:  104:
+        -:  105:/*dynamic data struct built in ordre to
+        -:  106:* save the neighbours of a vertex
+        -:  107:* nb       : is a dynamic array of vertices
+        -:  108:* size     : is the size of nb
+        -:  109:* capacity : is the capacity of nb
+        -:  110:*/
+        -:  111:
+        -:  112:
+        -:  113:struct neighbours{
+        -:  114:  size_t* nb;
+        -:  115:  size_t size;
+        -:  116:  size_t capacity;
+        -:  117:};
+        -:  118:
+        -:  119:/*returns an empty data-struct neighbours*/
+    #####:  120:struct neighbours* nb__empty(){
+    #####:  121:  struct neighbours*nb=malloc(sizeof(struct neighbours));
+    #####:  122:  nb->capacity=1;
+    #####:  123:  nb->size=0;
+    #####:  124:  nb->nb=malloc(sizeof(nb->capacity*sizeof(size_t)));
+    #####:  125:  return nb;
+        -:  126:}
+        -:  127:
+        -:  128:/* whenever the capacity of nb is insufficient
+        -:  129: * this fonction allocate more memory*/
+    #####:  130:void nb__realloc(struct neighbours * nb){
+    #####:  131:  if(nb->capacity == 0){
+    #####:  132:    nb->capacity = 1;
+    #####:  133:    nb->nb = malloc(sizeof(size_t) * 1);
+        -:  134:  }
+    #####:  135:  else if(nb->size == nb->capacity){
+    #####:  136:    size_t* tab = realloc(nb->nb,(2 * nb->capacity) * sizeof(size_t));
+    #####:  137:    nb->nb = tab;
+    #####:  138:    nb->capacity =nb->capacity*2;
+        -:  139:  }
+    #####:  140:}
+        -:  141:
+        -:  142:/* adds the vertex n to struct of neighbours nb
+        -:  143: * return EXIT_SUCCESS if n was added correctly
+        -:  144: * and EXIT_FAILURE if not
+        -:  145: */
+    #####:  146:int nb__add(struct neighbours*nb, size_t n){
+    #####:  147:  if((nb->capacity == 0) || (nb->size == 0)){
+    #####:  148:    nb__realloc(nb);
+    #####:  149:    nb->nb[0] = n;
+    #####:  150:    nb->size++;
+    #####:  151:    return EXIT_SUCCESS;
+        -:  152:  }
+        -:  153:  else{
+    #####:  154:  nb__realloc(nb);
+    #####:  155:  nb->nb[nb->size] =n;
+    #####:  156:  nb->size++;
+    #####:  157:  return EXIT_SUCCESS;
+        -:  158:  }
+        -:  159:  return EXIT_FAILURE;
+        -:  160:}
+        -:  161:
+        -:  162:/* free all the allocated memory of nb*/
+    #####:  163:void nb__free(struct neighbours* nb){
+    #####:  164:  free(nb->nb);
+    #####:  165:  free(nb);
+    #####:  166:}
+        -:  167:
+        -:  168:/* return the neighbours of a given vertex n
+        -:  169: * in the graph G
+        -:  170: */
+    #####:  171:struct neighbours* get_neighbours(struct graph_t* G,size_t n){
+    #####:  172:  struct neighbours*nb=nb__empty();
+    #####:  173:  for(size_t j=0;j<G->num_vertices;j++){
+    #####:  174:    if(gsl_spmatrix_get(G->t,n,G->num_vertices-1-j)==1){
+    #####:  175:      nb__add(nb,G->num_vertices-1-j);
+        -:  176:    }
+        -:  177:  }
+    #####:  178:  return nb;
+        -:  179:}
+        -:  180:
+        -:  181://///
+        -:  182:/*
+        -:  183:gsl_spmatrix* initialize_o(gsl_spmatrix* o,size_t n){
+        -:  184:    size_t i=0;
+        -:  185:    size_t m=(int)sqrt(n)-1;
+        -:  186:    for(i=0;i<m;i++){
+        -:  187:        gsl_spmatrix_set(o,0,i,1);
+        -:  188:        gsl_spmatrix_set(o,0,n-i-1,1);
+        -:  189:    }
+        -:  190:    for(i=m;i+1<n;i=i+m+1){
+        -:  191:        gsl_spmatrix_set(o,1,i,1);
+        -:  192:        gsl_spmatrix_set(o,1,i+1,1);
+        -:  193:    }
+        -:  194:    return o;
+        -:  195:}
+        -:  196:
+        -:  197:
+        -:  198:struct graph_t* initialize_carre(size_t n){
+        -:  199:    struct graph_t* G=malloc(sizeof(struct graph_t));
+        -:  200:    G->num_vertices=n;
+        -:  201:    G->t=gsl_spmatrix_alloc(n,n);
+        -:  202:    G->o=gsl_spmatrix_alloc(2,n);
+        -:  203:    initialize_o(G->o,n);
+        -:  204:    //initialize G->t
+        -:  205:    size_t i=0;
+        -:  206:    for(i=0;i<n;i++){
+        -:  207:        size_t m=(size_t)sqrt(n);
+        -:  208:        if((i+1)%m!=0){
+        -:  209:            gsl_spmatrix_set(G->t,i,i+1,1);
+        -:  210:            gsl_spmatrix_set(G->t,i+1,i,1);
+        -:  211:        }
+        -:  212:        if(i+m<n){
+        -:  213:            gsl_spmatrix_set(G->t,i,i+m,1);
+        -:  214:            gsl_spmatrix_set(G->t,i+m,i,1);
+        -:  215:        }
+        -:  216:    }
+        -:  217:    return G;
+        -:  218:}
+        -:  219:*/
+        -:  220:
+        -:  221:
+    #####:  222:struct graph_t* initialize_hex(size_t n){
+    #####:  223:    struct graph_t* G=malloc(sizeof(struct graph_t));
+    #####:  224:    G->t=gsl_spmatrix_alloc(n,n);
+    #####:  225:    G->o=gsl_spmatrix_alloc(2,n);
+    #####:  226:    G->num_vertices=n;
+    #####:  227:    initialize_o(G->o,n);//, 'h');
+        -:  228:    //initialize G->t
+    #####:  229:    size_t i=0;
+    #####:  230:    for(i=0;i<n;i++){
+    #####:  231:        size_t m=(size_t)sqrt(n);
+    #####:  232:        if((i+1)%m!=0){
+    #####:  233:            gsl_spmatrix_set(G->t,i,i+1,1);
+    #####:  234:            gsl_spmatrix_set(G->t,i+1,i,1);
+        -:  235:        }
+    #####:  236:        if(i+m<n){
+    #####:  237:            gsl_spmatrix_set(G->t,i,i+m,1);
+    #####:  238:            gsl_spmatrix_set(G->t,i+m,i,1);
+    #####:  239:            if(i%m!=0){
+    #####:  240:              gsl_spmatrix_set(G->t,i,i+m-1,1);
+    #####:  241:              gsl_spmatrix_set(G->t,i+m-1,i,1);
+        -:  242:            }
+        -:  243:        }
+        -:  244:    }
+    #####:  245:    return G;
+        -:  246:}
+        -:  247:
+        -:  248://///  graphe triangulaire : 2ème idée  ////
+        -:  249:/*struct graph_t* initialize_triangular(size_t m){
+        -:  250:  struct graph_t *graph = malloc(sizeof(struct graph_t));
+        -:  251:  size_t vertices = 6*m*m;
+        -:  252:  graph->num_vertices = vertices;
+        -:  253:  graph->t = gsl_spmatrix_alloc(vertices, vertices);
+        -:  254:  graph->o = gsl_spmatrix_alloc(2, vertices);
+        -:  255:  initialize_o(graph->o,vertices);
+        -:  256:  size_t x = 2 * m ;
+        -:  257:  for (size_t i = 0; i < x ; ++i){
+        -:  258:    gsl_spmatrix_set(graph->o, 0, i, 1);
+        -:  259:    gsl_spmatrix_set(graph->o, 0, vertices-i-1, 1);
+        -:  260:  }
+        -:  261:  x = 3 * m;
+        -:  262:  gsl_spmatrix_set(graph->o, 0, x-1, 1);
+        -:  263:  gsl_spmatrix_set(graph->o, 0, x-2, 1);
+        -:  264:  gsl_spmatrix_set(graph->o, 0, vertices-x, 1);
+        -:  265:  gsl_spmatrix_set(graph->o, 0, vertices-x+1, 1);
+        -:  266:  return graph  ;
+        -:  267:}
+        -:  268:*/
+    #####:  269:struct graph_t* graph_initialize(size_t n,char c){
+    #####:  270:  struct graph_t* graph=NULL;
+    #####:  271:  switch(c){
+    #####:  272:  case 'c':
+    #####:  273:    graph=initialize_carre(n);
+    #####:  274:    break;
+    #####:  275:  case 'h':
+    #####:  276:    graph=initialize_hex(n);
+    #####:  277:    break;
+        -:  278: /* case 't':
+        -:  279:    graph=initialize_triangular(n);
+        -:  280:    break;*/
+    #####:  281:  default:
+    #####:  282:    break;
+        -:  283:  }
+    #####:  284:  return graph;
+        -:  285:}
+        -:  286:
+    #####:  287:void graph_free(struct graph_t* G){
+    #####:  288:    gsl_spmatrix_free(G->o);
+    #####:  289:    gsl_spmatrix_free(G->t);
+    #####:  290:    free(G);
+    #####:  291:}
+        -:  292:
+    #####:  293:void graph_add_move(struct graph_t* G,struct move_t move){
+    #####:  294:    gsl_spmatrix_set(G->o,move.c,move.m,1);
+    #####:  295:}
+        -:  296:
+        -:  297:
+        -:  298:
+    #####:  299:void graph_display(struct graph_t*G,char t){
+    #####:  300:  size_t M=(int)sqrt(G->num_vertices)-1;
+        -:  301:  //if G is a square graph
+    #####:  302:  if(t=='c'){
+    #####:  303:    for (size_t i = 0; i < M+1; i++){
+    #####:  304:        printf("[\t");
+    #####:  305:        for (size_t j = 0; j < M+1; j++){
+    #####:  306:          if(gsl_spmatrix_get(G->o, 0, i*(M+1)+j))
+    #####:  307:            printf("\x1b[30m%c \x1b[37m\t",'B');
+    #####:  308:          else if(gsl_spmatrix_get(G->o, 1, i*(M+1)+j)){
+    #####:  309:            printf("\x1b[37m%c \x1b[37m\t",'W');
+        -:  310:          }
+        -:  311:	        else
+    #####:  312:            printf("%c\t",'.');
+        -:  313:	      }
+    #####:  314:        printf("]\n");
+        -:  315:    }
+        -:  316:  }
+        -:  317:  //if G is a Hex graph
+    #####:  318:  else if(t=='h'){
+    #####:  319:    for (size_t i = 0; i < M+1; i++){
+    #####:  320:        for(size_t k=0;k<i;k++)
+    #####:  321:          printf("\t");
+    #####:  322:        printf("[\t");
+    #####:  323:        for (size_t j = 0; j < M+1; j++){
+    #####:  324:          if(gsl_spmatrix_get(G->o, 0, i*(M+1)+j))
+    #####:  325:            printf("\x1b[30m%c \x1b[37m\t",'B');
+    #####:  326:          else if(gsl_spmatrix_get(G->o, 1, i*(M+1)+j)){
+    #####:  327:            printf("\x1b[37m%c \x1b[37m\t",'W');
+        -:  328:          }
+        -:  329:	        else
+    #####:  330:            printf("%c\t",'.');
+        -:  331:	      }
+    #####:  332:        printf("]\n");
+        -:  333:    }
+        -:  334:  }
+    #####:  335:}
+        -:  336:
+        -:  337:
+    #####:  338:int DFS(struct graph_t* G,enum color_t id){
+    #####:  339:  size_t M=(int)sqrt(G->num_vertices)-1;
+    #####:  340:  size_t* visited=malloc(G->num_vertices*sizeof(size_t));
+        -:  341:  // Mark all the vertices as not visited
+    #####:  342:  for(size_t i=0;i<G->num_vertices;i++){
+    #####:  343:    visited[i]=0;
+        -:  344:  }
+        -:  345:  //Determine the start vertex of the DFS
+    #####:  346:  int a=0,b=0;
+    #####:  347:  if(id==BLACK){
+    #####:  348:    a=DFSutil(G,0,visited,id);
+    #####:  349:  }else if(id==WHITE){
+    #####:  350:    b=DFSutil(G,M+1,visited,id);
+        -:  351:  }
+    #####:  352:  free(visited);
+    #####:  353:  if(a==1 || b==1)
+    #####:  354:    return 1;
+        -:  355:  else
+    #####:  356:    return 0;
+        -:  357:}
+        -:  358:
+    #####:  359:int DFSutil(struct graph_t* G,size_t n,size_t* visited,enum color_t id){
+    #####:  360:  size_t M=(int)sqrt(G->num_vertices)-1;
+        -:  361:  //mark the current vertex as visited
+    #####:  362:  visited[n]=1;
+    #####:  363:  struct neighbours* nb=get_neighbours(G,n);
+        -:  364:  //recur for all the adjacent vertices of n
+    #####:  365:  for(size_t i=0;i<nb->size;i++){
+    #####:  366:    if(gsl_spmatrix_get(G->o,id,nb->nb[i])==1 && !visited[nb->nb[i]]){
+    #####:  367:      if((id==BLACK && nb->nb[i]>=G->num_vertices-M) || (id==WHITE && nb->nb[i]%(M+1)==M)){
+        -:  368:        //there's a winner
+    #####:  369:        nb__free(nb);
+    #####:  370:        return 1;
+        -:  371:      }
+        -:  372:      else{
+    #####:  373:        if(DFSutil(G,nb->nb[i],visited,id)){
+        -:  374:          //there's a winner
+    #####:  375:          nb__free(nb);
+    #####:  376:          return 1;
+        -:  377:        }
+        -:  378:      }
+        -:  379:    }
+        -:  380:  }
+        -:  381:  //it's a draw
+    #####:  382:  nb__free(nb);
+    #####:  383:  return 0;
+        -:  384:}
